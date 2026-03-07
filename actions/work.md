@@ -259,6 +259,27 @@ The work action is an **orchestrator**. You (the orchestrator) are responsible f
 
 ---
 
+### Step 0: Write Your Work Order
+
+**Before touching any files**, write out the following checklist for the request you are about to process. Treat it as a live work order — check items off as you complete each step. Do not start Step 1 until you have written this out.
+
+```
+Work order — [REQ-NNN]:
+[ ] Step 1:   Identify next REQ-*.md in do-work/
+[ ] Step 2:   Claim → move to working/, update frontmatter (status: claimed)
+[ ] Step 3:   Triage → assign route A/B/C, append ## Triage section
+[ ] Step 4:   Plan → spawn Plan agent, append ## Plan section
+[ ] Step 4.5: *** MANDATORY *** Verify Plan → enumerate requirements, map to plan steps, fix gaps, append ## Plan Verification section
+[ ] Step 5:   Explore → spawn Explore agent OR append "Exploration: Not needed"
+[ ] Step 6:   Implement → spawn implementation agent, capture summary
+[ ] Step 6.5: Run tests → append ## Testing section
+[ ] Step 7:   Archive → update frontmatter, move file per UR/legacy logic
+[ ] Step 8:   Commit → git add -A && git commit (git repos only)
+[ ] Step 9:   Loop or exit
+```
+
+Marking Step 4.5 as done means `## Plan Verification` is written to the request file. Marking Step 6.5 as done means `## Testing` is written to the request file. Checking a box without the artifact does not count.
+
 ### Step 1: Find Next Request
 
 **[Orchestrator action - do this yourself]**
@@ -270,6 +291,8 @@ The work action is an **orchestrator**. You (the orchestrator) are responsible f
 **Important**: Do NOT read the contents of all request files. Only list filenames to find the next one. You'll read the chosen request in Step 3.
 
 If no request files found, report completion and exit.
+
+**Stale claim check:** Before picking from the queue, also check `do-work/working/`. If a file there has a `claimed_at` older than 1 hour, assume the previous session was interrupted — unclaim it (reset `status: pending`, remove `claimed_at` and `route`) and move it back to `do-work/` so it gets picked up normally. `do work resume` forces this behavior regardless of age.
 
 ### Step 2: Claim the Request
 
@@ -432,6 +455,8 @@ For each missing or partial item, edit the plan directly:
 For Route A plans (1-3 lines), verification will be fast — a simple task has few items to enumerate. The value is consistency: every request gets the same quality gate.
 
 See [verify-plan action](./verify-plan.md) for the full protocol.
+
+> **Gate:** `## Plan Verification` must be written to the request file before you start Step 5. If you skipped it or only did it mentally, go back and write it now.
 
 ### Step 5: Exploration Phase (When plan indicates)
 
@@ -1069,7 +1094,10 @@ Completed.
 ## Commands
 
 ### `do work`
-Process all pending requests in order.
+Process all pending requests in order. Automatically unclaims anything in `working/` that has been there longer than 1 hour before starting.
+
+### `do work resume`
+Like `do work`, but unclaims everything in `do-work/working/` immediately — no age threshold. Use this when you know a previous session was interrupted and left a request stranded. The unclaimed request moves back to the front of the queue with its existing triage/plan sections preserved; the work action picks it up and continues from the implementation phase if planning is already documented.
 
 ### `do work REQ-005` (future enhancement)
 Process a specific request by number, regardless of status.

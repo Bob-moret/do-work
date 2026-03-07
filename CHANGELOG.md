@@ -4,6 +4,33 @@ What's new, what's better, what's different. Most recent stuff on top.
 
 ---
 
+## 0.12.4 — The Resume (2026-03-07)
+
+Interrupted runs left requests stranded in `working/` — future runs skipped them, assuming another session was still active. Now `do work` automatically unclaims anything in `working/` that's been there over an hour before starting. `do work resume` does the same thing immediately, no age check — for when you know the session is gone and want to pick it back up now. Unclaimed requests move back to the queue with their existing plan sections intact.
+
+- Added stale claim check to Step 1: files in working/ older than 1 hour are unclaimed and requeued
+- Added `do work resume` command: immediate unclaim of all working/ files, no threshold
+- Updated `do work` command description to document the 1-hour auto-unclaim behavior
+
+## 0.12.3 — The Work Order (2026-03-07)
+
+Mandatory steps were getting skipped because the checklists lived at the end of the files — retrospective checks agents had already blown past. Flipped the model: both do and work now open with a Step 0 that requires declaring your work order upfront, before touching any files. The checklist becomes a prospective commitment, not a retrospective review. Added a hard gate at the Step 4.5 → Step 5 boundary in work.md so Plan Verification can't be quietly skipped.
+
+- Added Step 0 to do.md: agents must write out the capture order checklist before starting Step 1
+- Added Step 0 to work.md: agents must write out the work order checklist before starting Step 1
+- Added transition gate in work.md between Step 4.5 and Step 5 requiring ## Plan Verification in the file
+- Checklist items define artifacts: "done" means the section is written, not just mentally completed
+
+## 0.12.2 — The Triple Lock (2026-03-06)
+
+Agents were still skipping Step 5.5 verification despite having the instructions. Three reinforcements: both REQ format templates (simple and complex) now include a `## Verification` section so agents see it as part of the expected output. Step 6 opens with a hard gate — "check every REQ has a Verification section, if not go back." And the STOP section repeats the check as a final catch.
+
+- Added `## Verification` section to simple request format template with example coverage map
+- Added `## Verification` section to complex request format template with example coverage map
+- Added verification gate at top of Step 6: "BEFORE reporting, check every REQ has verification"
+- Added verification check to STOP section: "if any REQ is missing verification, go back"
+- Added note after simple format: "Every REQ file must end with a Verification section"
+
 ## 0.12.1 — The No-Ask Fix (2026-03-06)
 
 Verification was asking permission instead of just fixing, and the inline steps were hand-waves pointing to separate files. Agents need the actual instructions right where they're working, not a link to go read. Fixed for both verify-request (in do.md) and verify-plan (in work.md).

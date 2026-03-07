@@ -160,9 +160,26 @@ user_request: UR-001
 
 ---
 *Source: [original verbatim request]*
+
+## Verification
+
+**Source**: UR-001/input.md
+**Pre-fix coverage**: 100% (3/3 items)
+
+### Coverage Map
+
+| # | Item | REQ Section | Status |
+|---|------|-------------|--------|
+| 1 | Add dark mode toggle | What | Full |
+| 2 | App-wide | What | Full |
+| 3 | Toggle in settings | Context | Full |
+
+*Verified by verify-request action*
 ```
 
 Keep it lean. If the user said "add dark mode", the What section might just be "Add a dark mode toggle to the app." That's fine.
+
+**Every REQ file must end with a `## Verification` section.** If it doesn't have one, Step 5.5 was skipped — go back and run it.
 
 ### Complex Request Format
 
@@ -229,6 +246,33 @@ See [user-requests/UR-001/input.md](./user-requests/UR-001/input.md) for complet
 
 ---
 *Source: See UR-001/input.md for full verbatim input*
+
+## Verification
+
+**Source**: UR-001/input.md
+**Pre-fix coverage**: 90% (9/10 items)
+**Post-fix coverage**: 100% (10/10 items)
+
+### Coverage Map
+
+| # | Item | REQ Section | Status |
+|---|------|-------------|--------|
+| 1 | Google OAuth 2.0 with PKCE | Detailed Requirements | Full |
+| 2 | GitHub OAuth | Detailed Requirements | Full |
+| 3 | Redirect to /dashboard | Detailed Requirements | Full |
+| 4 | Encrypt refresh tokens at rest | Detailed Requirements | Full |
+| 5 | Handle token expiration | Detailed Requirements | Full |
+| 6 | Loading spinner during redirect | Detailed Requirements | Full |
+| 7 | User-friendly error messages | Detailed Requirements | Full |
+| 8 | Remember me checkbox | Detailed Requirements | Full |
+| 9 | No Auth0 or similar | Constraints | Full |
+| 10 | Migrate existing password users | Constraints | Missing -> Fixed |
+
+### Fixes Applied
+
+- Added "Must support existing users migrating from password auth" to Constraints
+
+*Verified by verify-request action*
 ```
 
 ### User Request (UR) input.md Format
@@ -341,6 +385,26 @@ The work action adds additional fields (`claimed_at`, `route`, `completed_at`) a
 **Note:** Legacy REQ files may have `context_ref` instead of `user_request`. The work action handles both.
 
 ## Workflow
+
+### Step 0: Declare Your Capture Order
+
+**Before doing anything else**, write out the following checklist. Treat it as your active work order — check items off as you complete each step. Do not start Step 1 until you have written this out.
+
+```
+Capture order:
+[ ] Step 1:   Parse input — single vs. multiple requests
+[ ] Step 1.5: Assess complexity — simple or complex mode
+[ ] Step 2:   Check for existing requests — duplicates, addendums
+[ ] Step 3:   Clarify only if genuinely ambiguous (skip if clear)
+[ ] Step 4:   Handle screenshots if present (skip if none)
+[ ] Step 5:   Create UR folder with input.md
+[ ] Step 5:   Create REQ file(s) with user_request: UR-NNN in frontmatter
+[ ] Step 5:   Update UR requests array with all REQ IDs
+[ ] Step 5.5: *** MANDATORY *** Verify requests — enumerate items from UR input, map to REQs, fix gaps, append ## Verification to every REQ file
+[ ] Step 6:   Report back — include verification coverage, never report without it
+```
+
+Marking Step 5.5 as done means every REQ file you created has a `## Verification` section appended to it. If any file is missing this section, Step 5.5 is not complete — go back.
 
 ### Step 1: Parse the Request
 
@@ -704,6 +768,8 @@ See [verify-request action](./verify-request.md) for the full protocol (used whe
 
 ### Step 6: Report Back
 
+**BEFORE reporting: Check that every REQ file has a `## Verification` section.** If any REQ you just created does not have one, STOP — go back to Step 5.5 and run verification now. Do not report back without verification results. The only exception is if the user said "skip verification."
+
 After creating files, give a brief summary:
 - What files were created
 - Any existing requests that were updated
@@ -735,7 +801,10 @@ If the pre-fix coverage was below 75%, call it out so the user knows significant
 
 **The do action ends here.** After reporting back to the user, you are done. Do not proceed to process the queue, start implementation, or transition into the work action.
 
+**Final check before stopping:** Every REQ file you created MUST have a `## Verification` section appended to it. If any REQ is missing this section, you skipped Step 5.5. Go back and run it now — enumerate items from the UR input, map them to the REQ, calculate coverage, fix gaps, and append the verification section. This is not optional.
+
 This is a hard boundary:
+- **Do NOT** report back without verification results on every REQ file
 - **Do NOT** check for pending requests and start working on them
 - **Do NOT** offer to "go ahead and start building" unless the user explicitly asked for that
 - **Do NOT** treat capture as step one of a capture-then-execute pipeline
