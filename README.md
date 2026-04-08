@@ -5,7 +5,7 @@ A task queue skill for agentic coding tools. Capture requests fast, process them
 ## Installation
 
 ```bash
-npx skills add bladnman/do-work
+npx skills add Bob-moret/do-work
 ```
 
 ## Welcome to your new work loop
