@@ -1,13 +1,26 @@
 ---
 name: do-work
-description: Task queue - add requests or process pending work
+description: >-
+  Task queue for capturing and processing work requests. Use when the user says
+  "do work", wants to add tasks/bugs/features to a queue, process pending requests,
+  verify captured requirements, or manage a structured work backlog. Handles both
+  quick captures ("do work fix the button") and complex multi-feature specs.
 argument-hint: run | (task to capture) | verify | cleanup | version | changelog
-upstream: https://raw.githubusercontent.com/bladnman/do-work/main/SKILL.md
+disable-model-invocation: true
+allowed-tools: Read Write Edit Bash Grep Glob Agent
 ---
 
 # Do-Work Skill
 
 A unified entry point for task capture and processing.
+
+## Current Queue Status
+
+```!
+echo "Pending: $(ls do-work/REQ-*-*.md 2>/dev/null | wc -l | tr -d ' ') request(s)"
+echo "In progress: $(ls do-work/working/REQ-*.md 2>/dev/null | wc -l | tr -d ' ')"
+echo "Archived: $(ls do-work/archive/UR-* 2>/dev/null | wc -l | tr -d ' ') UR(s)"
+```
 
 **Actions:**
 

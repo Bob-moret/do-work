@@ -4,6 +4,18 @@ What's new, what's better, what's different. Most recent stuff on top.
 
 ---
 
+## 0.13.0 — The Modernizer (2026-04-08)
+
+Forked from bladnman/do-work and modernized for Claude Code. The skill now leverages Claude Code-specific features while keeping the core workflow intact and platform-agnostic at heart.
+
+- Modernized SKILL.md frontmatter: richer description with trigger keywords, `disable-model-invocation: true` (user-invoked only), `allowed-tools` for safety
+- Added dynamic context injection: queue status (pending/in-progress/archived) auto-displays on every skill invocation via shell preprocessing
+- Split oversized action files: do.md (1011 → 256 lines) and work.md (1382 → 276 lines) with lazy-loaded reference files in `references/`
+- Added Claude Code subagent hints: native `Plan`, `Explore`, and `general-purpose` agent type suggestions in work.md
+- Added `${CLAUDE_SKILL_DIR}` path references for portable file resolution
+- Created `references/hooks-setup.md` with optional hooks configuration (session-start queue status, post-commit notifications)
+- Updated upstream URL to Bob-moret/do-work fork
+
 ## 0.12.4 — The Resume (2026-03-07)
 
 Interrupted runs left requests stranded in `working/` — future runs skipped them, assuming another session was still active. Now `do work` automatically unclaims anything in `working/` that's been there over an hour before starting. `do work resume` does the same thing immediately, no age check — for when you know the session is gone and want to pick it back up now. Unclaimed requests move back to the queue with their existing plan sections intact.
