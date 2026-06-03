@@ -16,141 +16,135 @@
 
 ## Agent Prompt Templates
 
-### Plan Agent Prompt (Step 4)
+> **The REQ file is the data bus.** The orchestrator does NOT paste request content,
+> plans, or exploration output into these prompts. It passes only the **path to the
+> claimed request file** (`do-work/working/REQ-XXX.md`). Each agent **reads** the inputs
+> it needs from that file and **returns only a short status token** to the orchestrator.
+> This keeps the heavy content on disk and out of the orchestrator's context — the
+> per-phase fan-out (a fresh agent per phase) is unchanged, so output quality is identical
+> to passing content inline.
+>
+> **The universal invariant:** the orchestrator **never pastes content forward** into a
+> later phase's prompt — the next agent always reads the file. This kills the biggest cost
+> (the implementation prompt used to re-paste the full request + plan + exploration).
+>
+> **Who writes the section:**
+> - **Write-capable agents** (e.g. Claude Code's `general-purpose`: Implement, Verify, Test)
+>   write their own output section directly into the REQ file. The orchestrator never sees it.
+> - **Read-only agents** (e.g. Claude Code's `Plan` and `Explore` types) cannot write files.
+>   They **return** their output text and the orchestrator writes that one section into the
+>   file — exactly as today. The orchestrator holds that text once, but still never forwards
+>   it. Quality is identical to current behavior because the same specialized agent runs.
+>
+> The templates below are written for the write-capable case ("write the section"). When you
+> use a read-only agent type, read that as "return the section text for the orchestrator to
+> write." Substitute `REQ-XXX.md` with the actual claimed filename when spawning each agent.
+
+### Plan Agent Prompt (Step 4 — includes triage)
 
 ```
-You are planning the implementation for this request:
+You are triaging AND planning the implementation for the request in this file:
 
----
-[Full content of the request file]
----
+  do-work/working/REQ-XXX.md
 
-Complexity assessment: Route [A/B/C] - [Simple/Medium/Complex]
+Step 1 — Read the file (the request body is under the original heading; ignore any
+frontmatter timestamps). Then assign a complexity route using this rubric:
+- Route A (Simple): names specific files AND clear changes, clear bug fix, or a
+  simple value/config/copy change.
+- Route B (Medium): clear outcome but unknown location, "like the existing X", needs
+  to find/match patterns.
+- Route C (Complex): new multi-component feature, architectural change, ambiguous
+  scope, touches multiple systems, or 100+ word request.
+- When uncertain, prefer Route B.
 
-Project context:
-- This is a [describe project type based on package.json/Cargo.toml]
-- Key directories: [list from exploring project structure]
+Step 2 — Write a `## Triage` section to the file:
+  ## Triage
+  **Route: [A/B/C]** - [Simple/Medium/Complex]
+  **Reasoning:** [1-2 sentences]
 
-Create an implementation plan proportional to the complexity:
-- Route A (Simple): 1-3 lines. Name the file(s) and what changes. That's it.
-- Route B (Medium): Identify patterns to match or locations to find, plus implementation steps.
-- Route C (Complex): Detailed plan with files, ordering, dependencies, architecture decisions, and testing approach.
+Step 3 — Create an implementation plan proportional to the route and append it as a
+`## Plan` section to the SAME file:
+- Route A: 1-3 lines. Name the file(s) and what changes. That's it.
+- Route B: Identify patterns to match or locations to find, plus implementation steps.
+- Route C: Detailed plan with files, ordering, dependencies, architecture decisions,
+  and testing approach.
+Be specific about file paths and function names where possible. If the plan requires
+finding unknown files or discovering existing patterns, say so — that signals that
+exploration is needed.
 
-Be specific about file paths and function names where possible.
-If your plan includes steps that require finding unknown files or discovering
-existing patterns, note them clearly — these signal that exploration is needed.
+Do NOT return the plan text. Return ONLY a single status line:
+  route=<A|B|C> exploration_needed=<true|false>
 ```
 
 ### Explore Agent Prompt (Step 5)
 
 ```
-Based on this implementation plan:
+Read the `## Plan` and the request body in this file:
 
----
-[Plan from previous phase]
----
+  do-work/working/REQ-XXX.md
 
-For this request:
-[Brief summary of the request]
-
-Find and read the relevant files that will need to be modified or that contain patterns we should follow. Focus on:
+Find and read the relevant codebase files the plan implies. Focus on:
 1. Files mentioned or implied by the plan
 2. Similar existing implementations we should match
 3. Type definitions and interfaces we'll need
 4. Test files that show testing patterns
 
-Return a summary of what you found, including:
+Append an `## Exploration` section to the SAME file capturing:
 - Key code patterns to follow
 - Existing types/interfaces to use
 - Any concerns or blockers discovered
+
+Do NOT return the findings. Return ONLY a single status line:
+  explored=<N> files=<comma-separated key paths> blockers=<none|short note>
 ```
 
-### Implementation Agent Prompt -- With Exploration Context (Step 6)
+### Implementation Agent Prompt (Step 6)
 
 ```
-You are implementing this request:
+You are implementing the request in this file:
 
-## Request
-[Full content of request file]
+  do-work/working/REQ-XXX.md
 
-## Implementation Plan
-[Plan from Step 4]
+Read it in full first. It contains:
+- the request body (what to build),
+- a `## Plan` section (how to build it),
+- and, if present, an `## Exploration` section (codebase patterns/types to follow).
+If there is no `## Exploration` section, explore the codebase yourself as needed.
 
-## Codebase Context
-[Output from Explore agent]
-
-## Instructions
-
-Implement the changes according to the plan, using the patterns and locations
-identified in the codebase context. You have full access to edit files and
+Implement the changes according to the plan. You have full access to edit files and
 run shell commands.
 
 Key guidelines:
-- Follow existing code patterns identified in the codebase context
+- Follow existing code patterns (those in `## Exploration` if present)
 - Make minimal, focused changes
 - If you encounter blockers, document them clearly
 - If you deviate from the plan, note why
 
 Testing requirements:
 - Identify existing tests related to the changes
-- Write new tests for new functionality, following patterns from the codebase context
+- Write new tests for new functionality, following the project's testing patterns
 - For bug fixes, add regression tests that would have caught the bug
 - Update existing tests if behavior intentionally changed
 
-When complete, provide a summary of:
+When done, append an `## Implementation Summary` section to the SAME file covering:
 1. What files were changed/created
 2. Any deviations from the plan and why
 3. What tests exist and what new tests were written
 4. Any follow-up items needed
-```
 
-### Implementation Agent Prompt -- Without Exploration Context (Step 6)
-
-```
-You are implementing this request:
-
-## Request
-[Full content of request file]
-
-## Implementation Plan
-[Plan from Step 4]
-
-## Instructions
-
-Implement the changes according to the plan. You have full access to edit
-files and run shell commands, including exploring the codebase if you need
-additional context.
-
-Key guidelines:
-- Make minimal, focused changes
-- If you encounter blockers, document them clearly
-- If you deviate from the plan, note why
-
-Testing requirements:
-- If the project has tests, identify tests related to your changes
-- Write new tests for new functionality or bug fixes (regression tests)
-- Update existing tests if behavior intentionally changed
-
-When complete, provide a summary of:
-1. What files were changed/created
-2. Any deviations from the plan and why
-3. What tests exist and what new tests were written
-4. Any follow-up items needed
+Do NOT return the summary. Return ONLY a single status line:
+  files=<N> tests=<N> status=<ok|blocked> note=<short note if blocked>
 ```
 
 ### Test-Writing Agent Prompt (Step 6.5)
 
 ```
-The following changes were made for this request:
+Changes were made for the request in this file:
 
-## Request
-[Brief summary]
+  do-work/working/REQ-XXX.md
 
-## Changes Made
-[Files created/modified from implementation summary]
-
-## Task
-Write appropriate tests for these changes. Follow the existing testing patterns in the codebase.
+Read its `## Implementation Summary` to see which files changed, then write appropriate
+tests for those changes. Follow the existing testing patterns in the codebase.
 
 Guidelines:
 - Match the testing style/framework already in use
@@ -159,7 +153,9 @@ Guidelines:
 - Keep tests focused and readable
 - Place test files according to project conventions
 
-After writing tests, run them to verify they pass.
+After writing tests, run them. Record results in the `## Testing` section of the SAME
+file. Do NOT return test output. Return ONLY a single status line:
+  added=<N> status=<pass|fail> note=<short note if fail>
 ```
 
 ---
@@ -171,21 +167,25 @@ After writing tests, run them to verify they pass.
 Before touching any files, write out the following checklist for the request you are about to process. Treat it as a live work order -- check items off as you complete each step. Do not start Step 1 until you have written this out.
 
 ```
-Work order — [REQ-NNN]:
-[ ] Step 1:   Identify next REQ-*.md in do-work/
+Work order — [REQ-NNN]:    (pass agents the REQ path only; collect status tokens)
+[ ] Step 1:   Identify next REQ-*.md in do-work/ (filenames only)
 [ ] Step 2:   Claim → move to working/, update frontmatter (status: claimed)
-[ ] Step 3:   Triage → assign route A/B/C, append ## Triage section
-[ ] Step 4:   Plan → spawn Plan agent, append ## Plan section
-[ ] Step 4.5: *** MANDATORY *** Verify Plan → enumerate requirements, map to plan steps, fix gaps, append ## Plan Verification section
-[ ] Step 5:   Explore → spawn Explore agent OR append "Exploration: Not needed"
-[ ] Step 6:   Implement → spawn implementation agent, capture summary
-[ ] Step 6.5: Run tests → append ## Testing section
+[ ] Step 3:   (triage folded into Plan agent — no separate step)
+[ ] Step 4:   Plan → spawn Plan agent (path only); ## Triage + ## Plan produced;
+              record route from token
+[ ] Step 4.5: *** MANDATORY *** Verify Plan → spawn Verify agent (path only); it
+              enumerates/maps/fixes and writes ## Plan Verification; record coverage from token
+[ ] Step 5:   Explore → if token said exploration_needed, spawn Explore agent;
+              ## Exploration produced. Else note "Not needed"
+[ ] Step 6:   Implement → spawn implementation agent (path only); it writes
+              ## Implementation Summary
+[ ] Step 6.5: Test → run/spawn tests; ## Testing written; record pass/fail from token
 [ ] Step 7:   Archive → update frontmatter, move file per UR/legacy logic
 [ ] Step 8:   Commit → git add -A && git commit (git repos only)
-[ ] Step 9:   Loop or exit
+[ ] Step 9:   Log compact status block, loop or exit
 ```
 
-Marking Step 4.5 as done means `## Plan Verification` is written to the request file. Marking Step 6.5 as done means `## Testing` is written to the request file. Checking a box without the artifact does not count.
+Marking Step 4.5 as done means `## Plan Verification` is written to the request file. Marking Step 6.5 as done means `## Testing` is written to the request file. Checking a box without the artifact does not count. ("Produced" means a write-capable agent wrote the section itself, or the orchestrator wrote it from a read-only agent's returned text — never forwarded to a later phase.)
 
 ### Per-Request Orchestrator Checklist
 
@@ -193,30 +193,31 @@ Marking Step 4.5 as done means `## Plan Verification` is written to the request 
 □ Step 1: List REQ-*.md files in do-work/, pick first one
 □ Step 2: mkdir -p do-work/working && mv do-work/REQ-XXX.md do-work/working/
 □ Step 2: Update frontmatter: status: claimed, claimed_at: <timestamp>
-□ Step 3: Read request, decide route (A/B/C), update frontmatter with route
-□ Step 3: Append ## Triage section to request file (including Planning status)
-□ Step 4: Spawn Plan agent (depth scales to route), append ## Plan section
-□ Step 4.5: Run verify-plan — enumerate, map, fix plan, store coverage
-□ Step 5: If plan indicates exploration needed: Spawn Explore agent, append ## Exploration section
-□ Step 5: If plan is fully specified: Append "Exploration: Not needed" section
-□ Step 6: Spawn implementation agent
-□ Step 6.5: Run tests, append ## Testing section
+□ Step 3: (triage folded into Plan agent — orchestrator does not read the request itself)
+□ Step 4: Spawn Plan agent (path only); ## Triage + ## Plan produced; record route from token
+□ Step 4.5: Spawn Verify agent (path only); it enumerates/maps/fixes, writes ## Plan Verification; record coverage
+□ Step 5: If token said exploration_needed: Spawn Explore agent (path only); ## Exploration produced
+□ Step 5: Else: note "Exploration: Not needed" in the file
+□ Step 6: Spawn implementation agent (path only); it writes ## Implementation Summary
+□ Step 6.5: Run/spawn tests; ## Testing written; record pass/fail from token
 □ Step 7: Update frontmatter: status: completed, completed_at: <timestamp>
-□ Step 7: Append ## Implementation Summary section
+□ Step 7: Verify ## Implementation Summary is present (agent wrote it; missing → treat as failure)
 □ Step 7: Archive REQ (see UR vs legacy archival logic)
 □ Step 7: If user_request exists → check if all UR's REQs complete → move UR folder to archive/
 □ Step 7: If context_ref exists (legacy) → check if all related REQs archived → move CONTEXT to archive/
 □ Step 7: If neither → mv do-work/working/REQ-XXX.md do-work/archive/
-□ Step 8: git add -A && git commit (if git repo)
-□ Step 9: Check for more requests, loop or exit
+□ Step 8: git add -A && git commit (if git repo); file list from `git diff --cached --name-only`
+□ Step 9: Log compact status block from collected tokens; check for more requests, loop or exit
 □ Step 9: If exiting: Run cleanup action (close completed URs, consolidate loose REQs)
 ```
 
 **Common mistakes to avoid:**
-- Spawning implementation agent without first moving file to `working/`
+- Spawning any agent without first moving the file to `working/` (agents read it from there)
+- Pasting request/plan/exploration content into a later phase's prompt (pass the path; the agent reads the file)
+- Reading the plan/summary/test output back into the orchestrator's context (you only need the status tokens)
 - Completing implementation without moving file to `archive/`
 - Forgetting to update status in frontmatter
-- Letting agents handle file management (they shouldn't)
+- Letting agents handle the file *lifecycle* — moves, archival, commits (those stay with the orchestrator; agents only write their content sections)
 - Skipping planning for simple requests (all routes get planned -- the plan just scales down)
 - Skipping verify-plan (it's mandatory for all routes unless user said "skip verification")
 - Forgetting to check/archive related UR folders or legacy context documents

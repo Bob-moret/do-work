@@ -4,6 +4,28 @@ What's new, what's better, what's different. Most recent stuff on top.
 
 ---
 
+## 0.14.0 — The Data Bus (2026-06-03)
+
+Long queues used to slowly fill the main context window because every request's content —
+the request body, the plan, the exploration notes — flowed back through the orchestrator on
+its way to the next phase. Now the REQ file is the data bus: each phase agent reads what it
+needs from the file and writes its own section back, and the orchestrator only ever passes a
+file path and collects a short status token. Same agents, same quality — just far less stuff
+piling up in the main context, so you can run a much longer list before it fills.
+
+- The orchestrator now passes each phase agent **only the REQ file path** and never pastes
+  request/plan/exploration content forward into the next phase's prompt
+- Write-capable agents (Implement, Verify, Test) write their own `## …` sections straight into
+  the REQ file; read-only `Plan`/`Explore` agents return their text for the orchestrator to
+  write, exactly as before — so plan/exploration quality is byte-for-byte unchanged
+- Triage folded into the Plan agent (no separate orchestrator read of the request)
+- Plan verification now runs as its own Verify agent instead of inline in the orchestrator
+- Progress is reported as a compact per-request status block built from the status tokens;
+  full detail still lives in the REQ file's living log
+- Documented an optional "even-leaner" mode: run Plan/Explore with `general-purpose` too, so
+  their text never touches the orchestrator (trades the specialized read-only planners for a
+  minor change to those two phases)
+
 ## 0.13.0 — The Modernizer (2026-04-08)
 
 Forked from bladnman/do-work and modernized for Claude Code. The skill now leverages Claude Code-specific features while keeping the core workflow intact and platform-agnostic at heart.

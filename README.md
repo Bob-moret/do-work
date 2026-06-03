@@ -92,6 +92,8 @@ See [actions/do.md](./actions/do.md) for the full capture logic.
 Invoked when you say "run", "go", "start", or just confirm the prompt. Runs the build loop:
 - Triages each request to determine the right amount of planning
 - Spawns specialized agents only when needed
+- Passes each agent only the REQ file path and collects short status tokens, so request
+  content stays on disk instead of filling the main context — long queues stay runnable
 - Archives completed work with implementation notes
 - Creates atomic git commits per request
 

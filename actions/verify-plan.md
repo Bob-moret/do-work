@@ -4,6 +4,13 @@
 
 A coverage analysis system that enumerates requirements from the REQ file and maps each one to the implementation plan. Finds gaps, auto-fixes the plan, and stores the coverage metrics for traceability.
 
+> **Runs as a dedicated Verify agent.** The work action spawns this as its own sub-agent
+> (Step 4.5) so the enumeration/mapping reasoning stays out of the orchestrator's context.
+> The agent **reads** the REQ file, does the analysis, **writes** the `## Plan Verification`
+> section back to that file, and **returns only a short status token** (`coverage=<N>%`).
+> If your tool has no sub-agents, run this protocol inline after planning — the steps are
+> identical either way.
+
 ## Coverage Analysis Protocol
 
 > This protocol is shared across all verify actions in do-work. The same enumeration-and-mapping approach is used by verify-request (input -> REQs) and verify-plan (REQ -> plan).
@@ -116,14 +123,11 @@ For each missing or partial item:
 *Verified by verify-plan action*
 ```
 
-3. **Print summary to terminal:**
+3. **Return a status token** to the orchestrator (do NOT echo the coverage map — it is
+   already written to the REQ file). Return ONLY a single status line:
 
 ```
-Plan Verification: REQ-005
-  Items: 10 enumerated from request
-  Pre-fix: 80% (7 full, 2 partial, 1 missing)
-  Fixed: 3 items in plan
-  Post-fix: 100%
+coverage=100% items=10 fixed=3
 ```
 
 ## What NOT To Do

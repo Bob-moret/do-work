@@ -80,90 +80,38 @@ Show what would be processed and their triage routes without making changes.
 
 ## Example Session
 
+Each phase agent receives only the REQ file path and returns a short status token; the
+orchestrator reports those tokens as a compact block. The full plan, exploration, and
+implementation detail is written into the REQ file (the living log) — it never needs to be
+echoed into the conversation.
+
 ```
 User: do work
 
 Assistant: Checking do-work/ folder...
-Found 3 pending requests. Starting with REQ-003-dark-mode.md...
-Triage: Complex (Route C) - new feature across multiple components
+Found 3 pending requests.
 
-[Spawns Plan agent]
-Planning complete. Key steps:
-  1. Add theme context provider
-  2. Create useTheme hook
-  3. Add toggle to settings
-  4. Update Tailwind config
+REQ-003-dark-mode.md (Route C):
+  plan ✓ · verify ✓ (88% → 100%, 1 item fixed) · explore ✓ (3 files)
+  implement ✓ — 3 files, 1 test · test ✓ 12 passing · archived · commit abc1234
 
-Verifying plan coverage...
-  Items: 8 enumerated from request
-  Pre-fix: 88% (7 full, 0 partial, 1 missing)
-  Fixed: Added Step 5 for system preference detection
-  Post-fix: 100%
+REQ-004-fix-submit-crash.md (Route A):
+  plan ✓ · verify ✓ (100%)
+  implement ✓ — 1 file, 1 test · test ✓ 8 passing · archived · commit def5678
 
-[Spawns Explore agent]
-Found relevant patterns:
-  - Existing context in src/stores/
-  - Settings panel at src/components/settings/
-  - Tailwind config at tailwind.config.js
-
-[Spawns implementation agent]
-Implementation complete:
-  - Created src/stores/theme-store.ts
-  - Modified src/components/settings/SettingsPanel.tsx
-  - Updated tailwind.config.js
-
-Testing: Running related tests...
-  - Added tests/theme-store.spec.ts
-  - All 12 tests passing ✓
-
-Archived REQ-003-dark-mode.md
-Committed → abc1234
-
-Continuing with REQ-004-fix-submit-crash.md...
-Triage: Simple (Route A) - bug fix with clear reproduction
-
-[Spawns Plan agent]
-Plan: "Fix null check in src/components/Form.tsx handleSubmit(). Add regression test."
-
-Verifying plan coverage...
-  Items: 2 enumerated from request
-  Coverage: 100%
-
-[Spawns implementation agent]
-Implementation complete:
-  - Fixed null check in src/components/Form.tsx:42
-
-Testing: Running related tests...
-  - Added regression test in tests/form.spec.ts
-  - All 8 tests passing ✓
-
-Archived REQ-004-fix-submit-crash.md
-Committed → def5678
-
-Continuing with REQ-005-change-timeout.md...
-Triage: Simple (Route A) - config value change
-
-[Spawns Plan agent]
-Plan: "Update API_TIMEOUT in src/config.ts from 30000 to 60000."
-
-Verifying plan coverage...
-  Items: 1 enumerated from request
-  Coverage: 100%
-
-[Spawns implementation agent]
-Implementation complete:
-  - Updated API_TIMEOUT in src/config.ts from 30000 to 60000
-
-Testing: No tests needed for config value change
-
-Archived REQ-005-change-timeout.md
-Committed → ghi9012
+REQ-005-change-timeout.md (Route A):
+  plan ✓ · verify ✓ (100%)
+  implement ✓ — 1 file · test — none needed · archived · commit ghi9012
 
 All 3 requests completed:
   - REQ-003: Route C → abc1234
   - REQ-004: Route A → def5678
   - REQ-005: Route A → ghi9012
 ```
+
+> Need the detail for a given request? It is all in the archived REQ file — `## Triage`,
+> `## Plan`, `## Plan Verification`, `## Exploration`, `## Implementation Summary`, and
+> `## Testing`. The compact block above is just the orchestrator's view; nothing is lost.
 
 ---
 

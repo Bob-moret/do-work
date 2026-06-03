@@ -25,7 +25,7 @@ echo "Archived: $(ls do-work/archive/UR-* 2>/dev/null | wc -l | tr -d ' ') UR(s)
 **Actions:**
 
 - **do**: Capture new tasks/requests → creates UR folder (verbatim input) + REQ files (queue items), always paired, then verifies coverage
-- **work**: Process pending requests → plans (with plan verification), explores, builds, tests
+- **work**: Process pending requests → plans (with plan verification), explores, builds, tests. The orchestrator passes each phase agent only the REQ file path and collects short status tokens, so the request content stays on disk instead of filling the main context — keeping long queues runnable.
 - **verify**: Evaluate captured REQs against original input → coverage check with auto-fix (also runs automatically after capture)
 - **cleanup**: Consolidate archive → moves loose REQs into UR folders, closes completed URs
 
