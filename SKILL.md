@@ -7,7 +7,7 @@ description: >-
   quick captures ("do work fix the button") and complex multi-feature specs.
 argument-hint: run | (task to capture) | verify | cleanup | version | changelog
 disable-model-invocation: true
-allowed-tools: Read Write Edit Bash Grep Glob Agent
+allowed-tools: Read Write Edit Bash Grep Glob Agent AskUserQuestion
 ---
 
 # Do-Work Skill
@@ -25,7 +25,7 @@ echo "Archived: $(ls do-work/archive/UR-* 2>/dev/null | wc -l | tr -d ' ') UR(s)
 **Actions:**
 
 - **do**: Capture new tasks/requests → creates UR folder (verbatim input) + REQ files (queue items), always paired, then verifies coverage
-- **work**: Process pending requests → plans (with plan verification), explores, builds, tests. The orchestrator passes each phase agent only the REQ file path and collects short status tokens, so the request content stays on disk instead of filling the main context — keeping long queues runnable.
+- **work**: Process pending requests → triages each into a route (A/B/C) and spawns only the agents that route needs (Route A 0–1, B 3, C 5), announcing the agent budget up front. The orchestrator passes each phase agent only the REQ file path and collects short status tokens, so the request content stays on disk instead of filling the main context — keeping long queues runnable.
 - **verify**: Evaluate captured REQs against original input → coverage check with auto-fix (also runs automatically after capture)
 - **cleanup**: Consolidate archive → moves loose REQs into UR folders, closes completed URs
 

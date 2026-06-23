@@ -28,43 +28,36 @@
 > later phase's prompt — the next agent always reads the file. This kills the biggest cost
 > (the implementation prompt used to re-paste the full request + plan + exploration).
 >
-> **Who writes the section:**
-> - **Write-capable agents** (e.g. Claude Code's `general-purpose`: Implement, Verify, Test)
->   write their own output section directly into the REQ file. The orchestrator never sees it.
-> - **Read-only agents** (e.g. Claude Code's `Plan` and `Explore` types) cannot write files.
->   They **return** their output text and the orchestrator writes that one section into the
->   file — exactly as today. The orchestrator holds that text once, but still never forwards
->   it. Quality is identical to current behavior because the same specialized agent runs.
+> **Who writes the section (Claude Code agent types):**
+> - **`general-purpose` agents** (Implement, Verify, Test) can write files, so they write their
+>   own output section directly into the REQ file. The orchestrator never sees it.
+> - **`Plan` and `Explore` agents** are read-only and cannot write files. They **return** their
+>   output text and the orchestrator writes that one section into the file. The orchestrator
+>   holds that text once, but still never forwards it.
 >
-> The templates below are written for the write-capable case ("write the section"). When you
-> use a read-only agent type, read that as "return the section text for the orchestrator to
-> write." Substitute `REQ-XXX.md` with the actual claimed filename when spawning each agent.
+> The templates below are written for the write-capable case ("write the section"). For the
+> read-only `Plan`/`Explore` types, read that as "return the section text for the orchestrator
+> to write." Substitute `REQ-XXX.md` with the actual claimed filename when spawning each agent.
+>
+> **Not every phase runs every time.** The route assigned at triage decides the agent budget:
+> Route A = Implement only (0–1 agents), Route B = Plan → Explore → Implement (3), Route C =
+> Plan → Verify → Explore → Implement → Test (5). See
+> [Agent Budget Per Route](../actions/work.md#agent-budget-per-route) in the work action.
 
-### Plan Agent Prompt (Step 4 — includes triage)
+### Plan Agent Prompt (Step 4 — Routes B and C only)
+
+> Triage is done by the orchestrator (Step 3), so the route is already known and passed into
+> this prompt. The Plan agent only plans. Route A does not use this agent — the orchestrator
+> writes a 1–3 line `## Plan` inline.
 
 ```
-You are triaging AND planning the implementation for the request in this file:
+Plan the implementation for the request in this file:
 
   do-work/working/REQ-XXX.md
 
-Step 1 — Read the file (the request body is under the original heading; ignore any
-frontmatter timestamps). Then assign a complexity route using this rubric:
-- Route A (Simple): names specific files AND clear changes, clear bug fix, or a
-  simple value/config/copy change.
-- Route B (Medium): clear outcome but unknown location, "like the existing X", needs
-  to find/match patterns.
-- Route C (Complex): new multi-component feature, architectural change, ambiguous
-  scope, touches multiple systems, or 100+ word request.
-- When uncertain, prefer Route B.
-
-Step 2 — Write a `## Triage` section to the file:
-  ## Triage
-  **Route: [A/B/C]** - [Simple/Medium/Complex]
-  **Reasoning:** [1-2 sentences]
-
-Step 3 — Create an implementation plan proportional to the route and append it as a
-`## Plan` section to the SAME file:
-- Route A: 1-3 lines. Name the file(s) and what changes. That's it.
+This request was triaged as Route <B|C>. Read the file (the request body is under the
+original heading; ignore any frontmatter timestamps), then create an implementation plan
+proportional to the route. Return it as a `## Plan` section:
 - Route B: Identify patterns to match or locations to find, plus implementation steps.
 - Route C: Detailed plan with files, ordering, dependencies, architecture decisions,
   and testing approach.
@@ -72,8 +65,11 @@ Be specific about file paths and function names where possible. If the plan requ
 finding unknown files or discovering existing patterns, say so — that signals that
 exploration is needed.
 
-Do NOT return the plan text. Return ONLY a single status line:
-  route=<A|B|C> exploration_needed=<true|false>
+(The read-only Plan agent returns this `## Plan` text for the orchestrator to write into
+the file.)
+
+Do NOT return anything but a single status line:
+  exploration_needed=<true|false>
 ```
 
 ### Explore Agent Prompt (Step 5)
@@ -166,26 +162,33 @@ file. Do NOT return test output. Return ONLY a single status line:
 
 Before touching any files, write out the following checklist for the request you are about to process. Treat it as a live work order -- check items off as you complete each step. Do not start Step 1 until you have written this out.
 
+This is the full Route C work order. After triage (Step 3), drop the steps your route does not
+use: **Route A** keeps only Triage → Implement → Test-run → Archive → Commit → Log;
+**Route B** drops the dedicated Verify (Step 4.5, unless under-specified) and the dedicated
+Test agent (Step 6.5 — Implement writes its own tests).
+
 ```
 Work order — [REQ-NNN]:    (pass agents the REQ path only; collect status tokens)
 [ ] Step 1:   Identify next REQ-*.md in do-work/ (filenames only)
 [ ] Step 2:   Claim → move to working/, update frontmatter (status: claimed)
-[ ] Step 3:   (triage folded into Plan agent — no separate step)
-[ ] Step 4:   Plan → spawn Plan agent (path only); ## Triage + ## Plan produced;
-              record route from token
-[ ] Step 4.5: *** MANDATORY *** Verify Plan → spawn Verify agent (path only); it
-              enumerates/maps/fixes and writes ## Plan Verification; record coverage from token
-[ ] Step 5:   Explore → if token said exploration_needed, spawn Explore agent;
+[ ] Step 3:   Triage → read REQ once, assign route, write ## Triage, ANNOUNCE budget
+              (e.g. "Route B → 3 agents: plan, explore, implement")
+[ ] Step 4:   Plan → (B/C) spawn Plan agent (path only); ## Plan produced; record
+              exploration_needed from token. (Route A: write 1-3 line ## Plan inline)
+[ ] Step 4.5: Verify Plan → MANDATORY (C) / optional (B) / skip (A): spawn Verify agent
+              (path only); it enumerates/maps/fixes and writes ## Plan Verification
+[ ] Step 5:   Explore → (B/C, if exploration_needed) spawn Explore agent;
               ## Exploration produced. Else note "Not needed"
 [ ] Step 6:   Implement → spawn implementation agent (path only); it writes
-              ## Implementation Summary
-[ ] Step 6.5: Test → run/spawn tests; ## Testing written; record pass/fail from token
+              ## Implementation Summary (A/B: also writes+runs its own tests)
+[ ] Step 6.5: Test → orchestrator runs the suite; (C) spawn dedicated Test agent for new
+              tests; ## Testing written; record pass/fail from token
 [ ] Step 7:   Archive → update frontmatter, move file per UR/legacy logic
 [ ] Step 8:   Commit → git add -A && git commit (git repos only)
-[ ] Step 9:   Log compact status block, loop or exit
+[ ] Step 9:   Log compact status block (incl. "Route X · N agents" tally), loop or exit
 ```
 
-Marking Step 4.5 as done means `## Plan Verification` is written to the request file. Marking Step 6.5 as done means `## Testing` is written to the request file. Checking a box without the artifact does not count. ("Produced" means a write-capable agent wrote the section itself, or the orchestrator wrote it from a read-only agent's returned text — never forwarded to a later phase.)
+When Step 4.5 runs (always for Route C), marking it done means `## Plan Verification` is written to the request file. Marking Step 6.5 as done means `## Testing` is written to the request file (by the Route C Test agent, or by the orchestrator after running the suite). Checking a box without the artifact does not count. ("Produced" means a write-capable `general-purpose` agent wrote the section itself, or the orchestrator wrote it from a read-only agent's returned text — never forwarded to a later phase.)
 
 ### Per-Request Orchestrator Checklist
 
@@ -193,13 +196,12 @@ Marking Step 4.5 as done means `## Plan Verification` is written to the request 
 □ Step 1: List REQ-*.md files in do-work/, pick first one
 □ Step 2: mkdir -p do-work/working && mv do-work/REQ-XXX.md do-work/working/
 □ Step 2: Update frontmatter: status: claimed, claimed_at: <timestamp>
-□ Step 3: (triage folded into Plan agent — orchestrator does not read the request itself)
-□ Step 4: Spawn Plan agent (path only); ## Triage + ## Plan produced; record route from token
-□ Step 4.5: Spawn Verify agent (path only); it enumerates/maps/fixes, writes ## Plan Verification; record coverage
-□ Step 5: If token said exploration_needed: Spawn Explore agent (path only); ## Exploration produced
-□ Step 5: Else: note "Exploration: Not needed" in the file
-□ Step 6: Spawn implementation agent (path only); it writes ## Implementation Summary
-□ Step 6.5: Run/spawn tests; ## Testing written; record pass/fail from token
+□ Step 3: Triage: read REQ once, assign route, write ## Triage, ANNOUNCE budget ("Route X → N agents")
+□ Step 4: (B/C) Spawn Plan agent (path only); ## Plan produced; record exploration_needed. (A: write 1-3 line ## Plan inline)
+□ Step 4.5: (C mandatory / B optional / A skip) Spawn Verify agent (path only); writes ## Plan Verification; record coverage
+□ Step 5: (B/C) If exploration_needed: Spawn Explore agent (path only); ## Exploration produced. Else: note "Not needed"
+□ Step 6: Spawn implementation agent (path only); it writes ## Implementation Summary (A/B: also writes+runs its own tests)
+□ Step 6.5: Run the suite; (C) spawn dedicated Test agent for new tests; ## Testing written; record pass/fail from token
 □ Step 7: Update frontmatter: status: completed, completed_at: <timestamp>
 □ Step 7: Verify ## Implementation Summary is present (agent wrote it; missing → treat as failure)
 □ Step 7: Archive REQ (see UR vs legacy archival logic)
@@ -218,8 +220,11 @@ Marking Step 4.5 as done means `## Plan Verification` is written to the request 
 - Completing implementation without moving file to `archive/`
 - Forgetting to update status in frontmatter
 - Letting agents handle the file *lifecycle* — moves, archival, commits (those stay with the orchestrator; agents only write their content sections)
-- Skipping planning for simple requests (all routes get planned -- the plan just scales down)
-- Skipping verify-plan (it's mandatory for all routes unless user said "skip verification")
+- Skipping planning entirely (every route gets a plan -- Route A's is a 1-3 line inline plan, B/C get a Plan agent)
+- Skipping verify-plan on Route C (it's mandatory there unless the user said "skip verification"; optional on B, skip on A)
+- Spawning a Plan/Verify/Explore agent for a Route A request (those are B/C only -- Route A is Implement only)
+- Spawning a dedicated Test agent on Route A/B (Implement writes its own tests there; dedicated Test agent is Route C only)
+- Forgetting to announce the agent budget at Step 3, or logging an agent count that doesn't match it
 - Forgetting to check/archive related UR folders or legacy context documents
 - Archiving a UR folder before all its REQs are complete
 

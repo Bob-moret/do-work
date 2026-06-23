@@ -154,7 +154,7 @@ For addendum formats, see [references/do-formats.md](../references/do-formats.md
 
 ### Step 3: Clarify Only If Needed
 
-Use your environment's ask-user prompt/tool ONLY when:
+Use the **AskUserQuestion** tool ONLY when:
 - Request is genuinely ambiguous (could mean two very different things)
 - Similar request exists and it's unclear if this is new or a revision
 - User's intent could conflict with existing requests
@@ -165,7 +165,7 @@ Use your environment's ask-user prompt/tool ONLY when:
 
 If the user passes a screenshot:
 
-1. **Find the cached/attached image**: Use your tool's attachment UI or image cache (Claude Code: `~/.claude/image-cache/[session-uuid]/[number].png`)
+1. **Find the cached image**: Claude Code caches pasted/attached images at `~/.claude/image-cache/[session-uuid]/[number].png`
 2. **Verify it's the right image**
 3. **Copy to UR assets**: `cp` to `do-work/user-requests/UR-[num]/assets/REQ-[num]-[slug].png`
 4. **Reference in request file**

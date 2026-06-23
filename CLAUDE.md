@@ -32,12 +32,23 @@ Rules for changelog entries:
 - **Match the voice.** Conversational, not corporate. Imagine you're telling a friend what shipped. No jargon walls, no passive voice marathons.
 - **Every version gets an entry.** No skipping. Even a patch fix deserves a line.
 
-## Agent Compatibility
+## Claude Code Native
 
-This skill is designed to work with **any agentic coding tool**, not just one specific platform. When writing or editing action files:
+This skill targets **Claude Code** specifically. Write action files for that environment
+directly — no tool-agnostic hedging.
 
-- **Use generalized language.** Say "use your environment's ask-user prompt/tool" rather than naming a specific tool API. Say "spawn a subagent" rather than referencing a specific tool's agent mechanism.
-- **Hint at advanced features, don't require them.** Subagents, multi-agent workflows, and structured question UIs improve results when available. The actions must still work in a single-session tool that reads the markdown as a prompt.
-- **Each action file should work as a standalone prompt.** If someone pastes `do.md` into a basic chat interface with file access, the instructions should be clear enough to follow without the SKILL.md routing layer or any skill-runner infrastructure.
-- **No tool-specific APIs in action files.** Tool-specific names and APIs belong in the tool's own integration layer, not in the skill's action files. Use platform-specific details only as clearly-labeled examples (e.g., "Example: Claude Code caches images at `~/.claude/...`").
-- **Design for the floor, not the ceiling.** The least sophisticated agent that can read/write files and run shell commands should be able to execute these actions correctly. Advanced agents benefit from subagents and parallel execution, but the baseline must work without them.
+- **Name the real tools.** Use `AskUserQuestion` for clarifying questions, the Agent tool for
+  subagents, and Claude Code's native agent types: `Plan` and `Explore` (read-only) and
+  `general-purpose` (write-capable). Don't write "use your environment's ask-user prompt."
+- **Scale agents to the route.** The work loop spawns only the agents a request's complexity
+  route needs — Route A = Implement only (0–1 agents), Route B = Plan → Explore → Implement
+  (3), Route C = Plan → Verify → Explore → Implement → Test (5). Keep this budget consistent
+  across `actions/work.md`, `references/work-orchestration.md`, and `README.md`.
+- **Make the agent count visible.** The orchestrator announces the budget before spawning
+  (`Route B → 3 agents: …`) and logs a running tally. Preserve this when editing.
+- **The REQ file is the data bus.** Agents get only the REQ file path and return a short
+  status token; heavy content flows agent → disk → agent, never forwarded through the
+  orchestrator's context.
+- **Claude Code paths are facts, not examples.** e.g. images cache at
+  `~/.claude/image-cache/[session-uuid]/[number].png`; skill references resolve via
+  `${CLAUDE_SKILL_DIR}`.

@@ -1,15 +1,14 @@
 # Verify Plan Action
 
-> **Part of the do-work skill.** Evaluates an implementation plan against its source REQ to ensure full requirement coverage. Runs automatically after the work action's planning phase (all routes).
+> **Part of the do-work skill.** Evaluates an implementation plan against its source REQ to ensure full requirement coverage. Runs after the work action's planning phase — **mandatory for Route C, optional for Route B, skipped for Route A**.
 
 A coverage analysis system that enumerates requirements from the REQ file and maps each one to the implementation plan. Finds gaps, auto-fixes the plan, and stores the coverage metrics for traceability.
 
-> **Runs as a dedicated Verify agent.** The work action spawns this as its own sub-agent
-> (Step 4.5) so the enumeration/mapping reasoning stays out of the orchestrator's context.
-> The agent **reads** the REQ file, does the analysis, **writes** the `## Plan Verification`
-> section back to that file, and **returns only a short status token** (`coverage=<N>%`).
-> If your tool has no sub-agents, run this protocol inline after planning — the steps are
-> identical either way.
+> **Runs as a dedicated Verify agent** (`subagent_type: general-purpose`). The work action
+> spawns this as its own sub-agent (Step 4.5) so the enumeration/mapping reasoning stays out
+> of the orchestrator's context. The agent **reads** the REQ file, does the analysis,
+> **writes** the `## Plan Verification` section back to that file, and **returns only a short
+> status token** (`coverage=<N>%`).
 
 ## Coverage Analysis Protocol
 
@@ -29,10 +28,15 @@ A coverage analysis system that enumerates requirements from the REQ file and ma
 
 ## When This Runs
 
-- **Automatically** after the work action's planning phase generates a plan (all routes — every request gets a plan)
-- **Skippable** if the user said "skip verification" in their original request
+- **Route C (mandatory)** — always runs after the planning phase generates a plan
+- **Route B (optional)** — run it only if the plan feels under-specified or the request had
+  many discrete requirements
+- **Route A (skipped)** — no Plan agent ran; the orchestrator's 1–3 line inline plan needs no
+  separate coverage gate
+- **Skippable** on any route if the user said "skip verification" in their original request
 
-For simple tasks (Route A), the plan may be 1-3 lines and verification will be fast. The value is consistency — every request gets the same quality gate regardless of complexity.
+The value on complex work is consistency: every requirement in a multi-part Route C request
+gets enumerated and mapped, so nothing silently falls out of the plan.
 
 ## Workflow
 

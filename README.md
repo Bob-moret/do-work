@@ -1,6 +1,6 @@
 # do-work
 
-A task queue skill for agentic coding tools. Capture requests fast, process them later.
+A task queue skill for Claude Code. Capture requests fast, process them later.
 
 ## Installation
 
@@ -66,14 +66,26 @@ Every `do` invocation creates a User Request (UR) folder preserving the verbatim
 
 Legacy REQs (created before the UR system) work the same as before — they archive directly without a UR folder.
 
-## Designed for Agentic Coding Tools
+## Built for Claude Code
 
-This skill assumes your tool supports:
-- File editing and shell access
-- Optional subagent or multi-agent workflows (Plan, Explore, Build)
-- Git integration for per-request commits (optional)
+This skill is a Claude Code command-skill. It uses Claude Code's native agent types
+(`Plan`, `Explore`, `general-purpose`) via the Agent tool, `AskUserQuestion` for the rare
+clarifying question, and git for per-request commits.
 
-It was originally written for Claude Code and should work with other tools that provide similar capabilities. If your tool does not support subagents, run the Plan, Explore, and Implementation phases sequentially in the same session.
+### Agents scale to the work
+
+The work loop assigns each request a complexity route and **only spawns the agents that route
+needs** — so a typo doesn't pay for a five-agent pipeline:
+
+| Route | Agents | What runs |
+| ----- | ------ | --------- |
+| **A** Simple  | 0–1 | Implement only (often inline) |
+| **B** Medium  | 3   | Plan → Explore → Implement |
+| **C** Complex | 5   | Plan → Verify → Explore → Implement → Test |
+
+Before spawning anything, the orchestrator **announces the budget** (e.g.
+`Route B → 3 agents: plan, explore, implement`) and reports a running tally in the status log,
+so it's always clear how many agents a request is using.
 
 ## The three actions
 
@@ -90,8 +102,8 @@ See [actions/do.md](./actions/do.md) for the full capture logic.
 ### Work (process)
 
 Invoked when you say "run", "go", "start", or just confirm the prompt. Runs the build loop:
-- Triages each request to determine the right amount of planning
-- Spawns specialized agents only when needed
+- Triages each request into a route (A/B/C) and spawns only the agents that route needs
+  (see [Agents scale to the work](#agents-scale-to-the-work)) — announcing the budget up front
 - Passes each agent only the REQ file path and collects short status tokens, so request
   content stays on disk instead of filling the main context — long queues stay runnable
 - Archives completed work with implementation notes

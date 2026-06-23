@@ -4,6 +4,24 @@ What's new, what's better, what's different. Most recent stuff on top.
 
 ---
 
+## 0.15.0 — Right-Sized Crews (2026-06-23)
+
+Small tasks no longer get a big crew. The work loop now scales the number of agents to each
+request's complexity route and announces the budget before it spawns anything — so a typo
+gets one agent (or none), not the full five-agent pipeline, and you can always see how many
+agents a request is using. The skill is also now fully Claude Code-native: real agent types,
+`AskUserQuestion`, no more tool-agnostic hedging.
+
+- **Agents scale to the route**: Route A = Implement only (0–1 agents), Route B = Plan →
+  Explore → Implement (3), Route C = Plan → Verify → Explore → Implement → Test (5)
+- **Visible agent count**: the orchestrator announces `Route X → N agents: …` up front and
+  logs a running tally in the status block
+- Verify-plan is now mandatory only on Route C (optional B, skipped A); the dedicated Test
+  agent is Route C only — Route A/B implementers write their own tests
+- Triage moved to a lightweight orchestrator step so it can size the budget before spawning
+- Dropped the AI-agnostic layer: named Claude Code agent types, `AskUserQuestion`, and direct
+  paths replace the generalized "your tool" language; removed `GEMINI.md`
+
 ## 0.14.0 — The Data Bus (2026-06-03)
 
 Long queues used to slowly fill the main context window because every request's content —
